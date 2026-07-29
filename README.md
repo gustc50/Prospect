@@ -90,6 +90,20 @@ diretamente em sua própria porta (`http://localhost:3001`) — é esse o modo u
 4. Para trabalhar com outra empresa, cadastre um novo perfil em Configurações e clique em **Ativar como empresa
    atual**.
 
+## Importar leads de uma planilha (Excel/CSV)
+
+Na tela de **Leads**, em vez de cadastrar um por um, você pode importar vários leads de uma vez a partir de uma
+planilha `.xlsx`, `.xls` ou `.csv`:
+
+1. Clique em **Baixar modelo** para pegar um arquivo de exemplo com as colunas esperadas.
+2. Preencha a planilha (uma linha por lead) e escolha o arquivo no campo de upload.
+3. O sistema reconhece automaticamente colunas chamadas "Nome" (obrigatória), "Telefone", "Email", "Origem" e
+   "Observações" — em qualquer ordem, com ou sem acento. Linhas sem nome são ignoradas e reportadas após a
+   importação.
+
+Isso também está disponível diretamente pela API em `POST /api/leads/import` (multipart/form-data, campos
+`company_id` e `file`), útil para automatizar a importação a partir de outra ferramenta.
+
 ## Variáveis de ambiente (server/.env)
 
 | Variável | Descrição |

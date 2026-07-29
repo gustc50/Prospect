@@ -76,6 +76,15 @@ export const api = {
   updateLead: (id: number, payload: Partial<Lead>) =>
     request<Lead>(`/leads/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteLead: (id: number) => request<void>(`/leads/${id}`, { method: "DELETE" }),
+  importLeads: async (companyId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("company_id", String(companyId));
+    formData.append("file", file);
+    const res = await fetch("/api/leads/import", { method: "POST", body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Falha ao importar a planilha.");
+    return data as { imported: number; skipped: { row: number; reason: string }[] };
+  },
 
   listConversations: (leadId?: number) =>
     request<Conversation[]>(`/conversations${leadId ? `?lead_id=${leadId}` : ""}`),

@@ -1,8 +1,80 @@
 import { Router } from "express";
+import multer from "multer";
 import { CompatDb } from "../db";
+import { parseLeadsFile } from "../services/leadImport";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 export default function createLeadsRouter(db: CompatDb) {
   const router = Router();
+
+  router.get("/template", (_req, res) => {
+    const header = ["Nome", "Telefone", "Email", "Origem", "Observações"];
+    const example = [
+      "João da Silva",
+      "11999999999",
+      "joao@example.com",
+      "Site",
+      "Pediu contato via WhatsApp",
+    ];
+    const csv = [header, example]
+      .map((cols) => cols.map((c) => `"${c.replace(/"/g, '""')}"`).join(";"))
+      .join("\r\n");
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="modelo-leads.csv"');
+    res.send("﻿" + csv);
+  });
+
+  router.post("/import", (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) return res.status(400).json({ error: "Falha ao enviar o arquivo (verifique o tamanho/formato)." });
+      next();
+    });
+  }, async (req, res) => {
+    const { company_id } = req.body || {};
+    if (!company_id) return res.status(400).json({ error: "company_id é obrigatório." });
+
+    const company = db.prepare("SELECT id FROM companies WHERE id = ?").get(company_id);
+    if (!company) return res.status(400).json({ error: "Empresa informada não existe." });
+
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+
+    const isSupported = /\.(xlsx|xls|csv)$/i.test(file.originalname);
+    if (!isSupported) {
+      return res.status(400).json({ error: "Formato não suportado. Envie um arquivo .xlsx, .xls ou .csv." });
+    }
+
+    let result;
+    try {
+      result = await parseLeadsFile(file.buffer, file.originalname);
+    } catch (err) {
+      return res.status(400).json({
+        error: err instanceof Error ? err.message : "Não foi possível ler a planilha enviada.",
+      });
+    }
+
+    const insert = db.prepare(
+      "INSERT INTO leads (company_id, name, phone, email, source, notes) VALUES (@company_id, @name, @phone, @email, @source, @notes)"
+    );
+
+    for (const lead of result.rows) {
+      insert.run({
+        company_id,
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        source: lead.source,
+        notes: lead.notes,
+      });
+    }
+
+    res.status(201).json({ imported: result.rows.length, skipped: result.skipped });
+  });
 
   router.get("/", (req, res) => {
     const companyId = req.query.company_id;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, Company, Lead } from "../lib/api";
 
@@ -9,6 +9,12 @@ export default function LeadsPage({ activeCompany }: { activeCompany: Company | 
   const [form, setForm] = useState(emptyLead);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    skipped: { row: number; reason: string }[];
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   const load = () => {
@@ -37,6 +43,25 @@ export default function LeadsPage({ activeCompany }: { activeCompany: Company | 
       setError((err as Error).message);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeCompany) return;
+
+    setError(null);
+    setImportResult(null);
+    setImporting(true);
+    try {
+      const result = await api.importLeads(activeCompany.id, file);
+      setImportResult(result);
+      load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -92,6 +117,38 @@ export default function LeadsPage({ activeCompany }: { activeCompany: Company | 
             </button>
           </div>
         </form>
+      </div>
+
+      <div className="card">
+        <label style={{ marginBottom: 10 }}>Importar vários leads de uma vez (planilha Excel ou CSV)</label>
+        <p className="muted" style={{ marginTop: 0 }}>
+          A primeira linha deve ter os cabeçalhos das colunas. Reconhecemos "Nome" (obrigatório), "Telefone",
+          "Email", "Origem" e "Observações" em qualquer ordem.
+        </p>
+        <div className="row">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportFile}
+            disabled={importing}
+          />
+          <a href="/api/leads/template" download>
+            <button type="button" className="secondary">
+              Baixar modelo
+            </button>
+          </a>
+        </div>
+        {importing && <p className="muted">Importando planilha...</p>}
+        {importResult && (
+          <p className="muted">
+            {importResult.imported} lead(s) importado(s).
+            {importResult.skipped.length > 0 &&
+              ` ${importResult.skipped.length} linha(s) ignorada(s) (sem nome): ${importResult.skipped
+                .map((s) => s.row)
+                .join(", ")}.`}
+          </p>
+        )}
       </div>
 
       {leads.length === 0 ? (
