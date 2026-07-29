@@ -29,14 +29,21 @@ client/   Painel em React + Vite + TypeScript
 
 Dê duplo clique no arquivo **`iniciar.bat`** na raiz do projeto. Ele verifica se o Node.js está instalado,
 instala as dependências na primeira execução, cria o `server/.env` automaticamente (a partir do
-`.env.example`), sobe a API e o painel em janelas separadas e abre o navegador em `http://localhost:5173` —
-sem precisar rodar nenhum comando manualmente.
+`.env.example`), **compila o painel e o serve a partir do próprio servidor** (uma única janela, uma única
+porta), espera o sistema realmente responder e só então abre o navegador — tudo em
+**`http://localhost:3001`**, sem precisar rodar nenhum comando manualmente.
 
 > Para as respostas automáticas da LLM funcionarem, edite `server\.env` e preencha `ANTHROPIC_API_KEY` com sua
-> chave da Anthropic (pode ser feito antes ou depois de rodar o `iniciar.bat`; se editar depois, basta fechar e
-> abrir novamente a janela "Prospect - API").
+> chave da Anthropic (pode ser feito antes ou depois de rodar o `iniciar.bat`; se editar depois, feche a janela
+> "Prospect" e rode o `iniciar.bat` novamente).
 
-## Configuração manual (macOS/Linux ou por linha de comando)
+Se a porta `3001` já estiver em uso por outro programa, o script avisa e para — nesse caso, feche o outro
+programa ou mude o valor de `PORT` em `server\.env` e rode novamente.
+
+## Configuração manual / modo desenvolvedor (com hot reload)
+
+Este modo roda a API e o painel como dois processos separados (API em `3001`, painel em `5173` com proxy para
+`/api`), útil quando você está editando o código e quer que as mudanças apareçam na hora.
 
 ### 1. Servidor (API)
 
@@ -59,6 +66,16 @@ npm run dev
 ```
 
 O painel sobe em `http://localhost:5173` (com proxy para a API em `/api`).
+
+### 3. Gerar a build de produção (usada pelo `iniciar.bat`)
+
+```bash
+cd client
+npm run build
+```
+
+Isso gera `client/dist`. Quando esse diretório existe, o servidor (`server`) passa a servir o painel
+diretamente em sua própria porta (`http://localhost:3001`) — é esse o modo usado pelo `iniciar.bat`.
 
 ## Fluxo de uso
 
