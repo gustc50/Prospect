@@ -40,12 +40,6 @@ if not exist "server\node_modules\.bin\tsx.cmd" (
         popd
         echo.
         echo [ERRO] A instalacao das dependencias do servidor falhou ^(veja o erro acima^).
-        echo Causa mais comum: o modulo better-sqlite3 tentou compilar do zero e faltam
-        echo as ferramentas de compilacao do Windows. Para corrigir, instale:
-        echo   - Build Tools for Visual Studio ^(workload "Desktop development with C++"^)
-        echo     https://visualstudio.microsoft.com/visual-cpp-build-tools/
-        echo   - Python 3.x: https://www.python.org/downloads/
-        echo Depois execute este arquivo novamente.
         echo.
         pause
         exit /b 1
