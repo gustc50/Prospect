@@ -40,6 +40,16 @@ porta), espera o sistema realmente responder e só então abre o navegador — t
 Se a porta `3001` já estiver em uso por outro programa, o script avisa e para — nesse caso, feche o outro
 programa ou mude o valor de `PORT` em `server\.env` e rode novamente.
 
+Se a instalação de dependências falhar (mensagem `[ERRO] A instalação das dependências do servidor falhou`), a
+causa mais comum é o pacote `better-sqlite3` (usado para o banco de dados) tentar compilar um módulo nativo e
+não encontrar as ferramentas de compilação do Windows. Instale:
+
+- [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (workload
+  "Desktop development with C++")
+- [Python 3.x](https://www.python.org/downloads/)
+
+e rode o `iniciar.bat` novamente.
+
 ## Configuração manual / modo desenvolvedor (com hot reload)
 
 Este modo roda a API e o painel como dois processos separados (API em `3001`, painel em `5173` com proxy para

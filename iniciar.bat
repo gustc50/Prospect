@@ -30,19 +30,43 @@ if not exist "server\.env" (
 )
 
 REM Instala as dependencias do servidor, se necessario
-if not exist "server\node_modules" (
+REM (verifica pelo binario do tsx, nao so pela pasta node_modules, para detectar
+REM  instalacoes anteriores que tenham falhado pela metade e tentar de novo)
+if not exist "server\node_modules\.bin\tsx.cmd" (
     echo [INFO] Instalando dependencias do servidor pela primeira vez...
     pushd server
     call npm install
+    if errorlevel 1 (
+        popd
+        echo.
+        echo [ERRO] A instalacao das dependencias do servidor falhou ^(veja o erro acima^).
+        echo Causa mais comum: o modulo better-sqlite3 tentou compilar do zero e faltam
+        echo as ferramentas de compilacao do Windows. Para corrigir, instale:
+        echo   - Build Tools for Visual Studio ^(workload "Desktop development with C++"^)
+        echo     https://visualstudio.microsoft.com/visual-cpp-build-tools/
+        echo   - Python 3.x: https://www.python.org/downloads/
+        echo Depois execute este arquivo novamente.
+        echo.
+        pause
+        exit /b 1
+    )
     popd
     echo.
 )
 
 REM Instala as dependencias do painel, se necessario
-if not exist "client\node_modules" (
+if not exist "client\node_modules\.bin\vite.cmd" (
     echo [INFO] Instalando dependencias do painel pela primeira vez...
     pushd client
     call npm install
+    if errorlevel 1 (
+        popd
+        echo.
+        echo [ERRO] A instalacao das dependencias do painel falhou ^(veja o erro acima^).
+        echo.
+        pause
+        exit /b 1
+    )
     popd
     echo.
 )
@@ -51,6 +75,14 @@ REM Compila o painel para que o servidor sirva tudo em um unico endereco
 echo [INFO] Preparando o painel...
 pushd client
 call npm run build
+if errorlevel 1 (
+    popd
+    echo.
+    echo [ERRO] A compilacao do painel falhou ^(veja o erro acima^).
+    echo.
+    pause
+    exit /b 1
+)
 popd
 echo.
 
