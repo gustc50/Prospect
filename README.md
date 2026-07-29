@@ -25,7 +25,18 @@ server/   API em Node.js + Express + TypeScript + SQLite (better-sqlite3)
 client/   Painel em React + Vite + TypeScript
 ```
 
-## Configuração
+## Início rápido no Windows
+
+Dê duplo clique no arquivo **`iniciar.bat`** na raiz do projeto. Ele verifica se o Node.js está instalado,
+instala as dependências na primeira execução, cria o `server/.env` automaticamente (a partir do
+`.env.example`), sobe a API e o painel em janelas separadas e abre o navegador em `http://localhost:5173` —
+sem precisar rodar nenhum comando manualmente.
+
+> Para as respostas automáticas da LLM funcionarem, edite `server\.env` e preencha `ANTHROPIC_API_KEY` com sua
+> chave da Anthropic (pode ser feito antes ou depois de rodar o `iniciar.bat`; se editar depois, basta fechar e
+> abrir novamente a janela "Prospect - API").
+
+## Configuração manual (macOS/Linux ou por linha de comando)
 
 ### 1. Servidor (API)
 
