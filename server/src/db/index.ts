@@ -154,9 +154,24 @@ const SCHEMA = `
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS agents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    llm_provider TEXT NOT NULL DEFAULT 'anthropic',
+    model TEXT DEFAULT '',
+    questions TEXT NOT NULL DEFAULT '[]',
+    objections TEXT NOT NULL DEFAULT '[]',
+    extra_instructions TEXT DEFAULT '',
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS conversations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
     status TEXT NOT NULL DEFAULT 'aberta',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -171,6 +186,16 @@ const SCHEMA = `
   );
 `;
 
+// Bancos criados por versões anteriores do app não têm a coluna "agent_id" em
+// "conversations" (ela foi adicionada depois) — o CREATE TABLE IF NOT EXISTS acima não
+// altera tabelas já existentes, então aplicamos essa migração manualmente aqui.
+function ensureColumn(db: CompatDb, table: string, column: string, columnDefinition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${columnDefinition}`);
+  }
+}
+
 export async function initDb(): Promise<CompatDb> {
   const dataDir = path.join(__dirname, "..", "..", "data");
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -183,6 +208,7 @@ export async function initDb(): Promise<CompatDb> {
   const db = new CompatDbImpl(raw, dbPath);
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  ensureColumn(db, "conversations", "agent_id", "agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL");
 
   return db;
 }

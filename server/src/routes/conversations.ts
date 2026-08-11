@@ -1,6 +1,41 @@
 import { Router } from "express";
 import { CompatDb } from "../db";
-import { generateReply, ChatMessage, CompanyProfile } from "../services/llmService";
+import { generateReply, AgentProfile, ChatMessage, CompanyProfile } from "../services/llmService";
+
+interface AgentRow {
+  id: number;
+  company_id: number;
+  name: string;
+  llm_provider: string;
+  model: string;
+  questions: string;
+  objections: string;
+  extra_instructions: string;
+}
+
+function toAgentProfile(row: AgentRow | undefined): AgentProfile | null {
+  if (!row) return null;
+  let questions: string[] = [];
+  let objections: { objection: string; response: string }[] = [];
+  try {
+    questions = JSON.parse(row.questions || "[]");
+  } catch {
+    questions = [];
+  }
+  try {
+    objections = JSON.parse(row.objections || "[]");
+  } catch {
+    objections = [];
+  }
+  return {
+    name: row.name,
+    llm_provider: row.llm_provider,
+    model: row.model,
+    questions,
+    objections,
+    extra_instructions: row.extra_instructions || "",
+  };
+}
 
 export default function createConversationsRouter(db: CompatDb) {
   const router = Router();
@@ -14,13 +49,29 @@ export default function createConversationsRouter(db: CompatDb) {
   });
 
   router.post("/", (req, res) => {
-    const { lead_id } = req.body || {};
+    const { lead_id, agent_id } = req.body || {};
     if (!lead_id) return res.status(400).json({ error: "lead_id é obrigatório." });
 
-    const lead = db.prepare("SELECT * FROM leads WHERE id = ?").get(lead_id);
+    const lead = db.prepare("SELECT * FROM leads WHERE id = ?").get(lead_id) as
+      | { id: number; company_id: number }
+      | undefined;
     if (!lead) return res.status(400).json({ error: "Lead informado não existe." });
 
-    const info = db.prepare("INSERT INTO conversations (lead_id) VALUES (?)").run(lead_id);
+    let resolvedAgentId: number | null = null;
+    if (agent_id) {
+      const agent = db.prepare("SELECT id FROM agents WHERE id = ? AND company_id = ?").get(agent_id, lead.company_id);
+      if (!agent) return res.status(400).json({ error: "Agente informado não existe para esta empresa." });
+      resolvedAgentId = agent_id;
+    } else {
+      const defaultAgent = db
+        .prepare("SELECT id FROM agents WHERE company_id = ? AND is_default = 1")
+        .get(lead.company_id) as { id: number } | undefined;
+      resolvedAgentId = defaultAgent ? defaultAgent.id : null;
+    }
+
+    const info = db
+      .prepare("INSERT INTO conversations (lead_id, agent_id) VALUES (@lead_id, @agent_id)")
+      .run({ lead_id, agent_id: resolvedAgentId });
     const conversation = db.prepare("SELECT * FROM conversations WHERE id = ?").get(info.lastInsertRowid);
     res.status(201).json(conversation);
   });
@@ -42,7 +93,7 @@ export default function createConversationsRouter(db: CompatDb) {
     }
 
     const conversation = db.prepare("SELECT * FROM conversations WHERE id = ?").get(req.params.id) as
-      | { id: number; lead_id: number; status: string }
+      | { id: number; lead_id: number; agent_id: number | null; status: string }
       | undefined;
     if (!conversation) return res.status(404).json({ error: "Conversa não encontrada." });
 
@@ -58,6 +109,11 @@ export default function createConversationsRouter(db: CompatDb) {
       return res.status(400).json({ error: "Empresa associada ao lead não encontrada." });
     }
 
+    const agentRow = conversation.agent_id
+      ? (db.prepare("SELECT * FROM agents WHERE id = ?").get(conversation.agent_id) as AgentRow | undefined)
+      : undefined;
+    const agent = toAgentProfile(agentRow);
+
     db.prepare(
       "INSERT INTO messages (conversation_id, role, content) VALUES (?, 'lead', ?)"
     ).run(conversation.id, content);
@@ -67,7 +123,7 @@ export default function createConversationsRouter(db: CompatDb) {
       .all(conversation.id) as ChatMessage[];
 
     try {
-      const replyText = await generateReply(company, lead.name, history);
+      const replyText = await generateReply(company, lead.name, history, agent);
 
       db.prepare(
         "INSERT INTO messages (conversation_id, role, content) VALUES (?, 'assistant', ?)"

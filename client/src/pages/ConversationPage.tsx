@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, Lead, Message } from "../lib/api";
+import { api, Agent, Lead, Message } from "../lib/api";
 
 export default function ConversationPage() {
   const { conversationId } = useParams();
@@ -8,6 +8,7 @@ export default function ConversationPage() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [lead, setLead] = useState<Lead | null>(null);
+  const [agent, setAgent] = useState<Agent | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +21,11 @@ export default function ConversationPage() {
       setMessages(messages);
       const leadData = await api.getLead(conversation.lead_id);
       setLead(leadData);
+      if (conversation.agent_id) {
+        api.getAgent(conversation.agent_id).then(setAgent).catch(() => setAgent(null));
+      } else {
+        setAgent(null);
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -61,11 +67,12 @@ export default function ConversationPage() {
           </Link>
           <h2 style={{ marginTop: 4 }}>{lead ? lead.name : "Conversa"}</h2>
         </div>
+        {agent && <span className="pill active">Agente: {agent.name}</span>}
       </div>
 
       <p className="muted">
         Simule mensagens recebidas do lead. A resposta é gerada automaticamente pela LLM, seguindo o perfil da
-        empresa ativa configurada em "Configurações da empresa".
+        empresa ativa{agent ? ` e o roteiro do agente "${agent.name}"` : ""} configurados{agent ? "" : " em \"Configurações da empresa\""}.
       </p>
 
       {error && <div className="error-banner">{error}</div>}

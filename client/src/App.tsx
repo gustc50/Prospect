@@ -3,6 +3,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { api, Company } from "./lib/api";
 import SettingsPage from "./pages/SettingsPage";
 import LeadsPage from "./pages/LeadsPage";
+import AgentsPage from "./pages/AgentsPage";
 import ConversationPage from "./pages/ConversationPage";
 
 export default function App() {
@@ -36,6 +37,9 @@ export default function App() {
         <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
           Leads
         </NavLink>
+        <NavLink to="/agentes" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+          Agentes
+        </NavLink>
         <NavLink to="/configuracoes" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
           Configurações da empresa
         </NavLink>
@@ -43,6 +47,7 @@ export default function App() {
       <main className="main">
         <Routes>
           <Route path="/" element={<LeadsPage activeCompany={activeCompany} />} />
+          <Route path="/agentes" element={<AgentsPage activeCompany={activeCompany} />} />
           <Route path="/configuracoes" element={<SettingsPage onCompanyChange={reloadActiveCompany} />} />
           <Route path="/conversas/:conversationId" element={<ConversationPage />} />
         </Routes>

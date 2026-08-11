@@ -1,19 +1,25 @@
 # Prospect — Sistema de Prospecção Automatizada
 
-Sistema de prospecção onde a conversa com o lead é conduzida em linguagem natural por uma **LLM externa** (Claude,
-via API da Anthropic). Nas **Configurações**, você cadastra as informações da empresa (segmento, produtos,
-diferenciais, público-alvo, tom de voz, critérios de qualificação, objetivo da conversa, etc.), e é esse perfil
-que a LLM usa como contexto para saber exatamente qual empresa está representando ao conversar com cada lead.
+Sistema de prospecção onde a conversa com o lead é conduzida em linguagem natural por uma **LLM externa**
+(Anthropic/Claude ou, por agente, qualquer modelo disponível via **OpenRouter**). Nas **Configurações**, você
+cadastra as informações da empresa (segmento, produtos, diferenciais, público-alvo, tom de voz, critérios de
+qualificação, objetivo da conversa, etc.), e é esse perfil que a LLM usa como contexto para saber exatamente
+qual empresa está representando ao conversar com cada lead.
 
 ## Como funciona
 
 - **Empresas**: cada empresa cadastrada tem um perfil completo. Apenas uma fica **ativa** por vez — é o perfil
   ativo que o sistema usa para atender novos leads. Isso permite reutilizar o mesmo sistema para diferentes
   negócios/clientes, bastando ativar o perfil correto.
+- **Agentes**: roteiros de conversa (perguntas-guia, objeções comuns e como respondê-las, instruções extras, e
+  qual LLM/modelo usar) que orientam a IA a tirar o máximo proveito de cada conversa. Você pode criar quantos
+  agentes quiser por empresa — um por produto, campanha, etc. — e escolher qual usar ao iniciar a conversa com
+  cada lead. Veja a seção **Agentes** abaixo.
 - **Leads**: cadastrados vinculados à empresa ativa (nome, telefone, e-mail, origem, status).
-- **Conversas**: cada lead tem uma conversa. Toda mensagem "do lead" enviada dispara uma chamada à LLM externa
-  (Claude), que responde com base no perfil da empresa + histórico da conversa, seguindo instruções de SDR
-  (entender a necessidade, qualificar, e conduzir ao objetivo definido, como agendar uma reunião).
+- **Conversas**: cada lead tem uma conversa, opcionalmente associada a um agente. Toda mensagem "do lead"
+  enviada dispara uma chamada à LLM externa, que responde combinando o perfil da empresa + o roteiro do agente
+  (se houver) + o histórico da conversa, seguindo instruções de SDR (entender a necessidade, qualificar, driblar
+  objeções e conduzir ao objetivo definido, como agendar uma reunião).
 - A tela de conversa simula o recebimento de mensagens do lead (útil para testes e demonstração). Para produção,
   o endpoint `POST /api/conversations/:id/messages` pode ser chamado a partir de qualquer canal real
   (WhatsApp Business API, webhook de e-mail, chat do site, etc.) para automatizar de ponta a ponta.
@@ -104,16 +110,37 @@ planilha `.xlsx`, `.xls` ou `.csv`:
 Isso também está disponível diretamente pela API em `POST /api/leads/import` (multipart/form-data, campos
 `company_id` e `file`), útil para automatizar a importação a partir de outra ferramenta.
 
+## Agentes: roteiros de conversa
+
+Na aba **Agentes**, você cria e edita quantos roteiros quiser para a empresa ativa. Cada agente tem:
+
+- **Nome** — para identificá-lo (ex: "Vendas - Plano Premium", "Suporte pós-venda").
+- **Provedor de LLM** — `Anthropic (Claude)` ou `OpenRouter`. Cada agente pode usar um provedor/modelo
+  diferente; basta configurar a respectiva chave de API no `server/.env` (veja a tabela abaixo).
+- **Modelo** — opcional; se vazio, usa o modelo padrão configurado no `.env` para aquele provedor.
+- **Perguntas-guia** — lista de perguntas que ajudam a IA a conduzir a conversa e entender a necessidade do
+  lead. Adicione, edite ou remova quantas quiser.
+- **Objeções comuns** — pares de "objeção" → "resposta sugerida", para a IA já saber como reagir quando o lead
+  disser "está caro", "preciso pensar", etc.
+- **Instruções adicionais** — qualquer outra orientação livre para aquele roteiro específico.
+
+Um agente pode ser marcado como **padrão** da empresa (o primeiro criado já fica). Ao clicar em **Conversar**
+num lead, você escolhe (por lead) qual agente usar — o padrão já vem pré-selecionado, mas dá para trocar antes
+de iniciar. Uma conversa já iniciada mantém o agente que foi escolhido no início dela.
+
 ## Variáveis de ambiente (server/.env)
 
 | Variável | Descrição |
 |---|---|
 | `PORT` | Porta da API (padrão `3001`) |
-| `ANTHROPIC_API_KEY` | Chave de API da Anthropic usada para gerar as respostas da LLM |
-| `ANTHROPIC_MODEL` | Modelo a ser usado (padrão `claude-sonnet-4-5`) |
+| `ANTHROPIC_API_KEY` | Chave de API da Anthropic — usada pelos agentes com provedor "Anthropic" |
+| `ANTHROPIC_MODEL` | Modelo padrão da Anthropic (padrão `claude-sonnet-4-5`), sobrescrevível por agente |
+| `OPENROUTER_API_KEY` | Chave de API da [OpenRouter](https://openrouter.ai/keys) — usada pelos agentes com provedor "OpenRouter" |
+| `OPENROUTER_MODEL` | Modelo padrão da OpenRouter (padrão `openai/gpt-4o-mini`), sobrescrevível por agente |
 
-Sem `ANTHROPIC_API_KEY` configurada, o sistema continua funcionando normalmente para cadastro de empresas e
-leads, mas o envio de mensagens retorna um erro explicando que a chave precisa ser configurada.
+Sem a chave do provedor escolhido pelo agente configurada, o sistema continua funcionando normalmente para
+cadastro de empresas, agentes e leads, mas o envio de mensagens naquela conversa retorna um erro explicando
+qual variável de ambiente falta configurar.
 
 ## Extensões futuras sugeridas
 

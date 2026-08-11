@@ -7,6 +7,7 @@ import { initDb } from "./db";
 import createCompaniesRouter from "./routes/companies";
 import createLeadsRouter from "./routes/leads";
 import createConversationsRouter from "./routes/conversations";
+import createAgentsRouter from "./routes/agents";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 
@@ -19,11 +20,16 @@ async function main() {
   app.use(express.json());
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, llmConfigured: Boolean(process.env.ANTHROPIC_API_KEY) });
+    res.json({
+      ok: true,
+      llmConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+      openrouterConfigured: Boolean(process.env.OPENROUTER_API_KEY),
+    });
   });
 
   app.use("/api/companies", createCompaniesRouter(db));
   app.use("/api/leads", createLeadsRouter(db));
+  app.use("/api/agents", createAgentsRouter(db));
   app.use("/api/conversations", createConversationsRouter(db));
 
   // Serve o painel (build de produção do client) a partir do mesmo servidor/porta da API,

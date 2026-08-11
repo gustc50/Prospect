@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, Company, Lead } from "../lib/api";
+import { api, Agent, Company, Lead } from "../lib/api";
 
 const emptyLead = { name: "", phone: "", email: "", source: "" };
 
 export default function LeadsPage({ activeCompany }: { activeCompany: Company | null }) {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgentByLead, setSelectedAgentByLead] = useState<Record<number, number | "">>({});
   const [form, setForm] = useState(emptyLead);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -23,6 +25,10 @@ export default function LeadsPage({ activeCompany }: { activeCompany: Company | 
       .listLeads(activeCompany.id)
       .then(setLeads)
       .catch((e) => setError(e.message));
+    api
+      .listAgents(activeCompany.id)
+      .then(setAgents)
+      .catch(() => setAgents([]));
   };
 
   useEffect(() => {
@@ -65,9 +71,16 @@ export default function LeadsPage({ activeCompany }: { activeCompany: Company | 
     }
   };
 
+  const agentForLead = (leadId: number): number | "" => {
+    if (selectedAgentByLead[leadId] !== undefined) return selectedAgentByLead[leadId];
+    return agents.find((a) => a.is_default)?.id ?? (agents[0]?.id ?? "");
+  };
+
   const openConversation = async (leadId: number) => {
     const existing = await api.listConversations(leadId);
-    const conversation = existing[0] || (await api.createConversation(leadId));
+    const agentId = agentForLead(leadId);
+    const conversation =
+      existing[0] || (await api.createConversation(leadId, agentId === "" ? undefined : agentId));
     navigate(`/conversas/${conversation.id}`);
   };
 
@@ -164,6 +177,26 @@ export default function LeadsPage({ activeCompany }: { activeCompany: Company | 
             </div>
             <div className="row">
               <span className="pill">{lead.status}</span>
+              {agents.length > 0 && (
+                <select
+                  value={agentForLead(lead.id)}
+                  onChange={(e) =>
+                    setSelectedAgentByLead((m) => ({
+                      ...m,
+                      [lead.id]: e.target.value === "" ? "" : Number(e.target.value),
+                    }))
+                  }
+                  style={{ width: 160 }}
+                  title="Agente para a próxima conversa"
+                >
+                  <option value="">Sem agente</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button onClick={() => openConversation(lead.id)}>Conversar</button>
             </div>
           </div>

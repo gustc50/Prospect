@@ -31,7 +31,27 @@ export interface Lead {
 export interface Conversation {
   id: number;
   lead_id: number;
+  agent_id: number | null;
   status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentObjection {
+  objection: string;
+  response: string;
+}
+
+export interface Agent {
+  id: number;
+  company_id: number;
+  name: string;
+  llm_provider: "anthropic" | "openrouter";
+  model: string;
+  questions: string[];
+  objections: AgentObjection[];
+  extra_instructions: string;
+  is_default: number;
   created_at: string;
   updated_at: string;
 }
@@ -86,10 +106,23 @@ export const api = {
     return data as { imported: number; skipped: { row: number; reason: string }[] };
   },
 
+  listAgents: (companyId?: number) =>
+    request<Agent[]>(`/agents${companyId ? `?company_id=${companyId}` : ""}`),
+  getAgent: (id: number) => request<Agent>(`/agents/${id}`),
+  createAgent: (payload: Partial<Agent>) =>
+    request<Agent>("/agents", { method: "POST", body: JSON.stringify(payload) }),
+  updateAgent: (id: number, payload: Partial<Agent>) =>
+    request<Agent>(`/agents/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  setDefaultAgent: (id: number) => request<Agent>(`/agents/${id}/default`, { method: "POST" }),
+  deleteAgent: (id: number) => request<void>(`/agents/${id}`, { method: "DELETE" }),
+
   listConversations: (leadId?: number) =>
     request<Conversation[]>(`/conversations${leadId ? `?lead_id=${leadId}` : ""}`),
-  createConversation: (leadId: number) =>
-    request<Conversation>("/conversations", { method: "POST", body: JSON.stringify({ lead_id: leadId }) }),
+  createConversation: (leadId: number, agentId?: number) =>
+    request<Conversation>("/conversations", {
+      method: "POST",
+      body: JSON.stringify({ lead_id: leadId, agent_id: agentId }),
+    }),
   getMessages: (conversationId: number) =>
     request<{ conversation: Conversation; messages: Message[] }>(`/conversations/${conversationId}/messages`),
   sendMessage: async (conversationId: number, content: string) => {
